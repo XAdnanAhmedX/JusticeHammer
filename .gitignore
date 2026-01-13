@@ -1,0 +1,26 @@
+# Sensitive files and master prompt
+PROMPT_MASTER.md
+TEAM_INSTRUCTIONS.md
+.env
+
+# Uploads directory (keep directory structure but ignore uploaded files)
+/uploads/*
+!/uploads/.gitkeep
+
+# Logs
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp

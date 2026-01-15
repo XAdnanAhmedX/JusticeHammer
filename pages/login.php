@@ -9,7 +9,7 @@ require_once __DIR__ . '/../includes/functions.php';
 
 // Redirect if already logged in
 if (isLoggedIn()) {
-    header('Location: /pages/dashboard.php');
+    header('Location: dashboard.php');
     exit;
 }
 
@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             
             if ($user && password_verify($password, $user['password_hash'])) {
                 loginUser($user['id'], $user['email'], $user['role'], $user['name']);
-                header('Location: /pages/dashboard.php');
+                header('Location: dashboard.php');
                 exit;
             } else {
                 $error = 'Invalid email or password';
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         
         <div class="text-center">
-            <a href="/pages/register.php" class="text-light">Don't have an account? Register</a>
+            <a href="register.php" class="text-light">Don't have an account? Register</a>
         </div>
         
         <hr class="my-4" style="border-color: rgba(255,255,255,0.2);">

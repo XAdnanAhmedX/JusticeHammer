@@ -13,7 +13,7 @@ requireLogin();
 $caseId = isset($_GET['id']) ? (int)$_GET['id'] : 0;
 
 if ($caseId <= 0) {
-    header('Location: /pages/dashboard.php');
+    header('Location: dashboard.php');
     exit;
 }
 
@@ -32,7 +32,7 @@ try {
     $case = $stmt->fetch();
     
     if (!$case) {
-        header('Location: /pages/dashboard.php');
+        header('Location: dashboard.php');
         exit;
     }
     
@@ -52,7 +52,7 @@ try {
     }
     
     if (!$hasAccess) {
-        header('Location: /pages/dashboard.php');
+        header('Location: dashboard.php');
         exit;
     }
     
@@ -68,7 +68,7 @@ try {
     
 } catch (PDOException $e) {
     error_log('Case details error: ' . $e->getMessage());
-    header('Location: /pages/dashboard.php');
+    header('Location: dashboard.php');
     exit;
 }
 ?>
@@ -105,10 +105,10 @@ try {
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="/pages/dashboard.php"><i class="fas fa-gavel"></i> Justice Hammer</a>
+            <a class="navbar-brand" href="dashboard.php"><i class="fas fa-gavel"></i> Justice Hammer</a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/pages/dashboard.php">Dashboard</a>
-                <a class="nav-link" href="/pages/logout.php">Logout</a>
+                <a class="nav-link" href="dashboard.php">Dashboard</a>
+                <a class="nav-link" href="logout.php">Logout</a>
             </div>
         </div>
     </nav>
@@ -196,7 +196,7 @@ try {
         <?php endif; ?>
         
         <div class="text-center mt-4">
-            <a href="/pages/dashboard.php" class="btn btn-secondary">Back to Dashboard</a>
+            <a href="dashboard.php" class="btn btn-secondary">Back to Dashboard</a>
         </div>
     </div>
 </body>

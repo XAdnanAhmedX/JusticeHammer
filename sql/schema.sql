@@ -53,6 +53,19 @@ CREATE TABLE timeline (
     FOREIGN KEY (actor_id) REFERENCES users(id)
 );
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 -- Trigger (demo)
 DELIMITER //
 CREATE TRIGGER trg_cases_after_update

@@ -105,13 +105,13 @@ try {
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="/pages/dashboard.php"><i class="fas fa-gavel"></i> Justice Hammer</a>
+            <a class="navbar-brand" href="dashboard.php"><i class="fas fa-gavel"></i> Justice Hammer</a>
             <div class="navbar-nav ms-auto">
                 <?php if (isLitigant()): ?>
-                    <a class="nav-link" href="/pages/file_report.php">File Report</a>
+                    <a class="nav-link" href="file_report.php">File Report</a>
                 <?php endif; ?>
                 <span class="navbar-text me-3">Welcome, <?php echo htmlspecialchars($_SESSION['name'] ?? 'User'); ?></span>
-                <a class="nav-link" href="/pages/logout.php">Logout</a>
+                <a class="nav-link" href="logout.php">Logout</a>
             </div>
         </div>
     </nav>
@@ -125,10 +125,10 @@ try {
         <div class="dashboard-card">
             <h3>My Cases (<?php echo count($cases); ?>)</h3>
             
-            <?php if (empty($cases)): ?>
+                <?php if (empty($cases)): ?>
                 <p class="text-muted">No cases found.</p>
                 <?php if (isLitigant()): ?>
-                    <a href="/pages/file_report.php" class="btn btn-primary">File Your First Report</a>
+                    <a href="file_report.php" class="btn btn-primary">File Your First Report</a>
                 <?php endif; ?>
             <?php else: ?>
                 <?php foreach ($cases as $case): ?>
@@ -154,7 +154,7 @@ try {
                                     <strong>Created:</strong> <?php echo date('Y-m-d H:i', strtotime($case['created_at'])); ?>
                                 </p>
                             </div>
-                            <a href="/pages/case_details.php?id=<?php echo $case['id']; ?>" class="btn btn-sm btn-outline-primary">View Details</a>
+                            <a href="case_details.php?id=<?php echo $case['id']; ?>" class="btn btn-sm btn-outline-primary">View Details</a>
                         </div>
                     </div>
                 <?php endforeach; ?>

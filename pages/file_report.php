@@ -7,13 +7,16 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/config.php';
+
+// Load config constants
+$config = require_once __DIR__ . '/../includes/config.php';
+define('BASE_URL', $config['BASE_URL'] ?? 'http://127.0.0.1/JusticeHammerDBMS_corrected');
 
 requireLogin();
 
 // Only litigants can file reports
 if (!isLitigant()) {
-    header('Location: /pages/dashboard.php');
+    header('Location: dashboard.php');
     exit;
 }
 
@@ -137,11 +140,11 @@ try {
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="/pages/dashboard.php"><i class="fas fa-gavel"></i> Justice Hammer</a>
+            <a class="navbar-brand" href="dashboard.php"><i class="fas fa-gavel"></i> Justice Hammer</a>
             <div class="navbar-nav ms-auto">
-                <a class="nav-link" href="/pages/dashboard.php">Dashboard</a>
-                <a class="nav-link active" href="/pages/file_report.php">File Report</a>
-                <a class="nav-link" href="/pages/logout.php">Logout</a>
+                <a class="nav-link" href="dashboard.php">Dashboard</a>
+                <a class="nav-link active" href="file_report.php">File Report</a>
+                <a class="nav-link" href="logout.php">Logout</a>
             </div>
         </div>
     </nav>

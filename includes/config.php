@@ -1,29 +1,24 @@
 <?php
 /**
- * Application Configuration
- * Loads environment variables and sets application constants
+ * Simple PHP configuration fallback for XAMPP / local development.
+ * If you prefer .env, keep .env in project root. This file is an alternative
+ * that is easier to edit when running under XAMPP.
+ *
+ * Return an associative array $config.
  */
 
-// Load environment variables from .env file if it exists
-$envFile = __DIR__ . '/../.env';
-if (file_exists($envFile)) {
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        if (strpos(trim($line), '#') === 0) continue; // Skip comments
-        if (strpos(trim($line), '=') === false) continue; // Skip invalid lines
-        list($key, $value) = explode('=', $line, 2);
-        $_ENV[trim($key)] = trim($value);
-        putenv(trim($key) . '=' . trim($value));
-    }
-}
-
-// Application constants
-define('UPLOADS_DIR', getenv('UPLOADS_DIR') ?: ($_ENV['UPLOADS_DIR'] ?? 'uploads'));
-define('BASE_URL', getenv('BASE_URL') ?: ($_ENV['BASE_URL'] ?? 'http://127.0.0.1:8000'));
-define('MAX_FILE_SIZE', 10 * 1024 * 1024); // 10MB
-
-// Ensure uploads directory exists
-$uploadsPath = __DIR__ . '/../' . UPLOADS_DIR;
-if (!is_dir($uploadsPath)) {
-    mkdir($uploadsPath, 0755, true);
-}
+return [
+    'DB_HOST' => '127.0.0.1',
+    'DB_PORT' => 3306,
+    'DB_NAME' => 'justice_hammer',
+    'DB_USER' => 'root',
+    'DB_PASS' => '',
+    'ANALYTICS_DB_HOST' => '127.0.0.1',
+    'ANALYTICS_DB_PORT' => 3306,
+    'ANALYTICS_DB_NAME' => 'justice_hammer_analytics',
+    'ANALYTICS_DB_USER' => 'root',
+    'ANALYTICS_DB_PASS' => '',
+    'UPLOADS_DIR' => 'uploads',
+    'MAX_FILE_SIZE' => 10485760, // 10MB in bytes
+    'BASE_URL' => 'http://127.0.0.1/JusticeHammerDBMS_corrected',
+];

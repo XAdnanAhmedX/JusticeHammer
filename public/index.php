@@ -18,11 +18,11 @@ $analyticsError = null;
 try {
     $pdo = getDbConnection();
     $stmt = $pdo->query('SELECT 1');
-    $result = $stmt->fetch();
-    if ($result) {
+    $res = $stmt->fetch();
+    if ($res !== false) {
         $primaryStatus = 'Connected';
     } else {
-        $primaryStatus = 'Failed - No result from SELECT 1';
+        $primaryStatus = 'Failed - No result';
     }
 } catch (Exception $e) {
     $primaryStatus = 'Failed';
@@ -33,26 +33,22 @@ try {
 try {
     $analyticsPdo = getAnalyticsDbConnection();
     $stmt = $analyticsPdo->query('SELECT 1');
-    $result = $stmt->fetch();
-    if ($result) {
+    $res = $stmt->fetch();
+    if ($res !== false) {
         $analyticsStatus = 'Connected';
     } else {
-        $analyticsStatus = 'Failed - No result from SELECT 1';
+        $analyticsStatus = 'Failed - No result';
     }
 } catch (Exception $e) {
     $analyticsStatus = 'Failed';
     $analyticsError = $e->getMessage();
 }
 
-// Output results
-echo "Justice Hammer DBMS - Health Check\n";
-echo "===================================\n\n";
 echo "Primary DB: " . $primaryStatus;
 if ($primaryError) {
     echo " - " . $primaryError;
 }
 echo "\n";
-
 echo "Analytics DB: " . $analyticsStatus;
 if ($analyticsError) {
     echo " - " . $analyticsError;

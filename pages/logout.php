@@ -7,5 +7,5 @@ require_once __DIR__ . '/../includes/auth.php';
 
 logoutUser();
 
-header('Location: /pages/login.php');
+header('Location: login.php');
 exit;

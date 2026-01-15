@@ -83,7 +83,7 @@ function requireVerified($userId) {
  */
 function requireLogin() {
     if (!isset($_SESSION['user_id'])) {
-        header('Location: /pages/login.php');
+        redirect_to('pages/login.php');
         exit;
     }
 }

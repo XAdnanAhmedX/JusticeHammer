@@ -6,11 +6,16 @@
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/config.php';
+
+// Load config constants
+$config = require_once __DIR__ . '/../includes/config.php';
+define('UPLOADS_DIR', $config['UPLOADS_DIR'] ?? 'uploads');
+define('MAX_FILE_SIZE', $config['MAX_FILE_SIZE'] ?? 10485760);
+define('BASE_URL', $config['BASE_URL'] ?? 'http://127.0.0.1/JusticeHammerDBMS_corrected');
 
 // Redirect if already logged in
 if (isLoggedIn()) {
-    header('Location: /pages/dashboard.php');
+    header('Location: dashboard.php');
     exit;
 }
 
@@ -94,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $success = 'Registration successful! You can now login.';
                 // Optionally auto-login
                 // loginUser($userId, $email, $role, $name);
-                // header('Location: /pages/dashboard.php');
+                // header('Location: dashboard.php');
                 // exit;
             }
         } catch (PDOException $e) {
@@ -199,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
         
         <div class="text-center">
-            <a href="/pages/login.php" class="text-light">Already have an account? Login</a>
+            <a href="login.php" class="text-light">Already have an account? Login</a>
         </div>
     </div>
     

@@ -1,10 +1,5 @@
 <?php
-/**
- * Create Case API Endpoint
- * POST /api/create_case.php
- * 
- * Creates a new case with transaction safety
- */
+
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/auth.php';
@@ -12,22 +7,19 @@ require_once __DIR__ . '/../includes/functions.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
-// Require POST method
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     json_response(['ok' => false, 'error' => 'Method not allowed'], 405);
 }
 
-// Start session if not started
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Require authentication
 if (!isLoggedIn()) {
     json_response(['ok' => false, 'error' => 'Authentication required'], 401);
 }
 
-// Only litigants can create cases (or admin for testing)
+// Only litigants can create cases 
 $userId = getCurrentUserId();
 if (!isLitigant() && !isAdmin()) {
     json_response(['ok' => false, 'error' => 'Only litigants can create cases'], 403);
@@ -65,7 +57,7 @@ if (!in_array($contactPref, ['EMAIL', 'PHONE', 'ANONYMOUS'])) {
     json_response(['ok' => false, 'error' => 'Invalid contact preference'], 400);
 }
 
-// Validate incident date if provided
+// Validate incident date 
 if ($incidentDate && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $incidentDate)) {
     json_response(['ok' => false, 'error' => 'Invalid incident date format (expected YYYY-MM-DD)'], 400);
 }
@@ -76,7 +68,6 @@ try {
     // Begin transaction
     $pdo->beginTransaction();
     
-    // Generate tracking code with retry logic (up to 5 attempts)
     $trackingCode = null;
     $maxAttempts = 5;
     $attempt = 0;

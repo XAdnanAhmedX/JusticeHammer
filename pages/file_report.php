@@ -42,41 +42,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif (!in_array($contactPref, ['EMAIL', 'PHONE', 'ANONYMOUS'])) {
         $error = 'Invalid contact preference';
     } else {
-        // Make API call to create case
-        $apiUrl = BASE_URL . '/api/create_case.php';
-        $postData = http_build_query([
-            'title' => $title,
-            'description' => $description,
-            'type' => $type,
-            'district' => $district,
-            'incident_date' => $incidentDate,
-            'contact_pref' => $contactPref,
-            'sensitive' => $sensitive,
-            'open_consent' => $openConsent,
-            'preferred_lawyer_id' => $preferredLawyerId
-        ]);
-        
-        $ch = curl_init($apiUrl);
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_COOKIE, session_name() . '=' . session_id());
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/x-www-form-urlencoded'
-        ]);
-        
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_close($ch);
-        
-        $result = json_decode($response, true);
-        
-        if ($httpCode === 200 && isset($result['ok']) && $result['ok']) {
-            $success = 'Case filed successfully! Tracking Code: ' . htmlspecialchars($result['trackingCode']);
-            // Clear form
-            $_POST = [];
-        } else {
-            $error = $result['error'] ?? 'Failed to create case. Please try again.';
+        // Directly create case using database logic (fixes session issue)
+        try {
+            $pdo = getDbConnection();
+            $userId = getCurrentUserId();
+            
+            // Begin transaction
+            $pdo->beginTransaction();
+            
+            // Generate tracking code with retry logic (up to 5 attempts)
+            $trackingCode = null;
+            $maxAttempts = 5;
+            $attempt = 0;
+            
+            while ($attempt < $maxAttempts) {
+                $trackingCode = generate_tracking_code(8);
+                
+                // Check if tracking code already exists
+                $stmt = $pdo->prepare('SELECT id FROM cases WHERE tracking_code = :code');
+                $stmt->execute(['code' => $trackingCode]);
+                
+                if (!$stmt->fetch()) {
+                    // Tracking code is unique, break out of loop
+                    break;
+                }
+                
+                $attempt++;
+                
+                if ($attempt >= $maxAttempts) {
+                    $pdo->rollBack();
+                    $error = 'Failed to generate unique tracking code. Please try again.';
+                    break;
+                }
+            }
+            
+            if ($trackingCode) {
+                // Insert case
+                $stmt = $pdo->prepare('
+                    INSERT INTO cases (tracking_code, title, description, type, district, incident_date, status, created_by) 
+                    VALUES (:tracking_code, :title, :description, :type, :district, :incident_date, :status, :created_by)
+                ');
+                
+                $stmt->execute([
+                    'tracking_code' => $trackingCode,
+                    'title' => $title,
+                    'description' => $description ?: null,
+                    'type' => $type,
+                    'district' => $district,
+                    'incident_date' => !empty($incidentDate) ? $incidentDate : null,
+                    'status' => 'RECEIVED',
+                    'created_by' => $userId
+                ]);
+                
+                $caseId = $pdo->lastInsertId();
+                
+                // Insert timeline entry
+                $meta = [
+                    'contact_pref' => $contactPref,
+                    'sensitive' => $sensitive,
+                    'open_consent' => $openConsent
+                ];
+                
+                if ($preferredLawyerId && !$openConsent) {
+                    $meta['preferred_lawyer_id'] = $preferredLawyerId;
+                }
+                
+                $stmt = $pdo->prepare('
+                    INSERT INTO timeline (case_id, actor_id, event, meta) 
+                    VALUES (:case_id, :actor_id, :event, :meta)
+                ');
+                
+                $stmt->execute([
+                    'case_id' => $caseId,
+                    'actor_id' => $userId,
+                    'event' => 'Received',
+                    'meta' => json_encode($meta)
+                ]);
+                
+                // Commit transaction
+                $pdo->commit();
+                
+                $success = 'Case filed successfully! Tracking Code: ' . htmlspecialchars($trackingCode);
+                // Clear form
+                $_POST = [];
+            }
+            
+        } catch (PDOException $e) {
+            // Rollback on error
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Create case error: ' . $e->getMessage());
+            $error = 'Failed to create case. Please try again.';
+        } catch (Exception $e) {
+            // Rollback on error
+            if (isset($pdo) && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            error_log('Create case error: ' . $e->getMessage());
+            $error = 'An unexpected error occurred. Please try again.';
         }
     }
 }

@@ -24,14 +24,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         try {
             $pdo = getDbConnection();
-            $stmt = $pdo->prepare('SELECT id, email, name, role, password_hash FROM users WHERE email = :email');
+            $stmt = $pdo->prepare('SELECT id, email, name, role, password_hash, verified FROM users WHERE email = :email');
             $stmt->execute(['email' => $email]);
             $user = $stmt->fetch();
             
             if ($user && password_verify($password, $user['password_hash'])) {
-                loginUser($user['id'], $user['email'], $user['role'], $user['name']);
-                header('Location: dashboard.php');
-                exit;
+                // Check if lawyer is verified
+                if ($user['role'] === 'LAWYER' && !$user['verified']) {
+                    $error = 'Your account is pending verification. Please wait for admin approval.';
+                } else {
+                    loginUser($user['id'], $user['email'], $user['role'], $user['name']);
+                    header('Location: dashboard.php');
+                    exit;
+                }
             } else {
                 $error = 'Invalid email or password';
             }
@@ -50,38 +55,88 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #fff;
-        }
-        .login-card {
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            padding: 2rem;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        }
-        .form-control {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            color: #fff;
-        }
-        .form-control:focus {
-            background: rgba(255, 255, 255, 0.15);
-            border-color: #0d6efd;
-            color: #fff;
-        }
-        .btn-primary {
-            background: linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%);
-            border: none;
-        }
+    body {
+        background: linear-gradient(135deg, #0f172a 0%, #111827 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #f9fafb;
+    }
+
+    .login-card {
+        background: rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 16px;
+        padding: 2rem;
+        width: 100%;
+        max-width: 400px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    /* Headings */
+    .login-card h2,
+    .login-card h4 {
+        color: #ffffff;
+    }
+
+    /* Labels */
+    .form-label {
+        color: #e5e7eb;
+        font-weight: 500;
+    }
+
+    /* Inputs */
+    .form-control {
+        background: rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: #ffffff;
+    }
+
+    .form-control::placeholder {
+        color: #cbd5f5;
+        opacity: 1;
+    }
+
+    .form-control:focus {
+        background: rgba(255, 255, 255, 0.2);
+        border-color: #3b82f6;
+        color: #ffffff;
+        box-shadow: 0 0 0 0.15rem rgba(59, 130, 246, 0.35);
+    }
+
+    /* Button */
+    .btn-primary {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        border: none;
+        font-weight: 600;
+    }
+
+    .btn-primary:hover {
+        background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%);
+    }
+
+    /* Links */
+    a.text-light {
+        color: #93c5fd !important;
+        text-decoration: none;
+    }
+
+    a.text-light:hover {
+        color: #bfdbfe !important;
+        text-decoration: underline;
+    }
+
+    /* Demo account text */
+    .text-muted {
+        color: #d1d5db !important;
+    }
+
+    hr {
+        border-color: rgba(255, 255, 255, 0.25);
+    }
+
     </style>
 </head>
 <body>

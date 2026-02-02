@@ -1,0 +1,519 @@
+Justice Hammer - SQL Queries Documentation
+
+Schema Creation:
+
+1. Create database
+
+
+CREATE DATABASE IF NOT EXISTS justice_hammer;
+
+
+2. Use database
+
+
+USE justice_hammer;
+
+3. Users table
+
+CREATE TABLE users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    name VARCHAR(120) NOT NULL,
+    role ENUM('LITIGANT','LAWYER','OFFICIAL','ADMIN') NOT NULL,
+    district VARCHAR(80) NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    verified TINYINT(1) DEFAULT 0,
+    verification_file_path VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+
+4. Cases table
+
+
+CREATE TABLE cases (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    tracking_code VARCHAR(12) UNIQUE NOT NULL,
+    title VARCHAR(200) NOT NULL,
+    description TEXT,
+    type ENUM('Crime','Gender-Based Violence','Land Dispute','Corruption','Other') NOT NULL,
+    district VARCHAR(80) NOT NULL,
+    incident_date DATE,
+    status ENUM('RECEIVED','TRIAGED','ASSIGNED','IN_PROGRESS','CLOSED','SOLVED') DEFAULT 'RECEIVED',
+    created_by INT NOT NULL,
+    assigned_to INT NULL,
+    lawyer_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (created_by) REFERENCES users(id),
+    FOREIGN KEY (assigned_to) REFERENCES users(id),
+    FOREIGN KEY (lawyer_id) REFERENCES users(id),
+    INDEX idx_status (status),
+    INDEX idx_district (district)
+);
+
+
+5. Evidence table
+
+
+CREATE TABLE evidence (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    case_id INT NOT NULL,
+    filename VARCHAR(255) NOT NULL,
+    stored_path VARCHAR(255) NOT NULL,
+    sha256 CHAR(64) NOT NULL,
+    uploaded_by INT NOT NULL,
+    uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (uploaded_by) REFERENCES users(id)
+);
+
+
+6. Timeline table
+
+CREATE TABLE timeline (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    case_id INT NULL,
+    actor_id INT NULL,
+    event VARCHAR(255) NOT NULL,
+    meta JSON NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (actor_id) REFERENCES users(id)
+);
+
+
+7. Chat messages table
+
+
+CREATE TABLE chat_messages (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    case_id INT NOT NULL,
+    sender_id INT NOT NULL,
+    receiver_id INT NOT NULL,
+    message TEXT NOT NULL,
+    file_path VARCHAR(255) NULL,
+    file_name VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (receiver_id) REFERENCES users(id),
+    INDEX idx_case_id (case_id),
+    INDEX idx_sender_receiver (sender_id, receiver_id)
+);
+
+
+8. Lawyer ratings table
+
+CREATE TABLE lawyer_ratings (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    case_id INT NOT NULL,
+    lawyer_id INT NOT NULL,
+    litigant_id INT NOT NULL,
+    rating INT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (case_id) REFERENCES cases(id) ON DELETE CASCADE,
+    FOREIGN KEY (lawyer_id) REFERENCES users(id),
+    FOREIGN KEY (litigant_id) REFERENCES users(id),
+    UNIQUE KEY unique_case_rating (case_id, litigant_id),
+    INDEX idx_lawyer_id (lawyer_id)
+);
+
+
+9. Admin actions table
+
+CREATE TABLE admin_actions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    admin_id INT NOT NULL,
+    target_user_id INT NOT NULL,
+    action_type ENUM('VERIFY_LAWYER', 'DENY_LAWYER', 'ASSIGN_CASE') NOT NULL,
+    details JSON NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (admin_id) REFERENCES users(id),
+    FOREIGN KEY (target_user_id) REFERENCES users(id),
+    INDEX idx_admin_id (admin_id),
+    INDEX idx_target_user (target_user_id)
+);
+
+
+User Management:
+
+1. User Registration
+
+
+INSERT INTO users (email, name, role, district, password_hash, verified, verification_file_path)
+VALUES (:email, :name, :role, :district, :password_hash, 0, :verification_file_path);
+
+
+2. User Login Verification
+
+
+SELECT id, email, name, role, password_hash, verified
+FROM users
+WHERE email = :email;
+
+
+3. Check if Lawyer is Verified
+
+
+SELECT id, name, verified
+FROM users
+WHERE id = :userId AND role = 'LAWYER';
+
+
+4. Update Lawyer Verification Status
+
+
+UPDATE users
+SET verified = :verified
+WHERE id = :userId AND role = 'LAWYER';
+
+
+5. Get All Lawyers with Ratings
+
+
+SELECT u.*,
+       COALESCE(AVG(lr.rating), 0) AS avg_rating,
+       COUNT(lr.id) AS total_ratings
+FROM users u
+LEFT JOIN lawyer_ratings lr ON u.id = lr.lawyer_id
+WHERE u.role = 'LAWYER'
+GROUP BY u.id
+ORDER BY avg_rating DESC, total_ratings DESC, u.name ASC;
+
+
+6. Get Pending Verification Requests
+
+SELECT u.*, t.meta, t.created_at AS request_date
+FROM users u
+LEFT JOIN timeline t ON u.id = t.actor_id AND t.event = 'Verification Request'
+WHERE u.role = 'LAWYER' AND u.verified = 0
+ORDER BY u.created_at ASC;
+
+
+## Case Management
+
+1. Create Case
+
+Insert new case
+INSERT INTO cases (tracking_code, title, description, type, district, incident_date, status, created_by)
+VALUES (:tracking_code, :title, :description, :type, :district, :incident_date, 'RECEIVED', :created_by);
+
+
+2. Get Cases by User Role - Admin: All cases
+
+
+SELECT c.*, u1.name AS created_by_name, u2.name AS assigned_to_name, u3.name AS lawyer_name
+FROM cases c
+LEFT JOIN users u1 ON c.created_by = u1.id
+LEFT JOIN users u2 ON c.assigned_to = u2.id
+LEFT JOIN users u3 ON c.lawyer_id = u3.id
+ORDER BY c.created_at DESC;
+
+
+3. Get Cases by User Role - Litigant: Own cases
+
+
+SELECT c.*, u1.name AS created_by_name, u2.name AS assigned_to_name
+FROM cases c
+LEFT JOIN users u1 ON c.created_by = u1.id
+LEFT JOIN users u2 ON c.assigned_to = u2.id
+WHERE c.created_by = :userId
+ORDER BY c.created_at DESC;
+
+
+4. Get Cases by User Role - Lawyer: Assigned cases
+
+
+SELECT DISTINCT c.*, u1.name AS created_by_name, u2.name AS assigned_to_name
+FROM cases c
+LEFT JOIN users u1 ON c.created_by = u1.id
+LEFT JOIN users u2 ON c.assigned_to = u2.id
+INNER JOIN timeline t ON c.id = t.case_id
+WHERE t.event = 'Lawyer Assigned'
+AND JSON_EXTRACT(t.meta, '$.lawyerId') = :userId
+ORDER BY c.created_at DESC;
+
+
+5. Get Cases by User Role - Official: Assigned cases
+
+
+SELECT c.*, u1.name AS created_by_name, u2.name AS assigned_to_name
+FROM cases c
+LEFT JOIN users u1 ON c.created_by = u1.id
+LEFT JOIN users u2 ON c.assigned_to = u2.id
+WHERE c.assigned_to = :userId
+ORDER BY c.created_at DESC;
+
+
+6. Get Case Details
+
+
+
+SELECT c.*, u1.name AS created_by_name, u2.name AS assigned_to_name, u3.name AS lawyer_name
+FROM cases c
+LEFT JOIN users u1 ON c.created_by = u1.id
+LEFT JOIN users u2 ON c.assigned_to = u2.id
+LEFT JOIN users u3 ON c.lawyer_id = u3.id
+WHERE c.id = :caseId;
+
+
+7. Assign Lawyer to Case
+
+
+UPDATE cases
+SET lawyer_id = :lawyerId
+WHERE id = :caseId;
+
+
+8. Mark Case as Solved
+
+UPDATE cases
+SET status = 'SOLVED'
+WHERE id = :caseId;
+
+
+9. Check Case Access
+
+SELECT id
+FROM timeline
+WHERE case_id = :caseId
+AND event = 'Lawyer Assigned'
+AND JSON_EXTRACT(meta, '$.lawyerId') = :userId;
+
+
+Evidence Management
+
+10. Upload Evidence
+
+
+INSERT INTO evidence (case_id, filename, stored_path, sha256, uploaded_by)
+VALUES (:case_id, :filename, :stored_path, :sha256, :uploaded_by);
+
+
+11. Get Evidence for Case
+
+
+SELECT *
+FROM evidence
+WHERE case_id = :caseId
+ORDER BY uploaded_at ASC;
+
+
+12. Verify Evidence Integrity
+
+
+SELECT id, filename, stored_path, sha256
+FROM evidence
+WHERE id = :evidenceId;
+
+
+
+13. Create Timeline Entry
+
+
+Insert timeline event:
+INSERT INTO timeline (case_id, actor_id, event, meta)
+VALUES (:case_id, :actor_id, :event, :meta);
+
+
+14. Get Timeline for Case
+
+
+
+SELECT t.*, u.name AS actor_name
+FROM timeline t
+LEFT JOIN users u ON t.actor_id = u.id
+WHERE t.case_id = :caseId
+ORDER BY t.created_at ASC;
+
+
+
+Chat System:
+
+15. Send Chat Message
+
+
+INSERT INTO chat_messages (case_id, sender_id, receiver_id, message, file_path, file_name)
+VALUES (:case_id, :sender_id, :receiver_id, :message, :file_path, :file_name);
+
+
+16. Get Chat Messages
+
+
+SELECT cm.*, u1.name AS sender_name, u2.name AS receiver_name
+FROM chat_messages cm
+LEFT JOIN users u1 ON cm.sender_id = u1.id
+LEFT JOIN users u2 ON cm.receiver_id = u2.id
+WHERE cm.case_id = :caseId
+ORDER BY cm.created_at ASC;
+
+
+
+Rating System:
+
+17. Submit Rating
+
+
+INSERT INTO lawyer_ratings (case_id, lawyer_id, litigant_id, rating, comment)
+VALUES (:case_id, :lawyer_id, :litigant_id, :rating, :comment);
+
+
+
+
+18. Get Average Rating for Lawyer
+
+
+SELECT
+    AVG(rating) AS avg_rating,
+    COUNT(*) AS total_ratings
+FROM lawyer_ratings
+WHERE lawyer_id = :lawyerId;
+
+
+19. Get All Ratings for Lawyer
+
+
+SELECT lr.*, c.title AS case_title, u.name AS litigant_name
+FROM lawyer_ratings lr
+JOIN cases c ON lr.case_id = c.id
+JOIN users u ON lr.litigant_id = u.id
+WHERE lr.lawyer_id = :lawyerId
+ORDER BY lr.created_at DESC;
+
+
+20.Average Rating by Lawyer performance:
+SELECT 
+    u.id,
+    u.name,
+    u.email,
+    AVG(lr.rating) AS avg_rating,
+    COUNT(lr.id) AS total_ratings,
+    COUNT(DISTINCT lr.case_id) AS cases_rated
+FROM users u
+LEFT JOIN lawyer_ratings lr ON u.id = lr.lawyer_id
+WHERE u.role = 'LAWYER'
+GROUP BY u.id
+ORDER BY avg_rating DESC;
+
+
+Admin Functions:
+
+21.Update user verification
+
+
+UPDATE users
+SET verified = :verified
+WHERE id = :userId;
+
+
+22.Log admin action
+
+
+INSERT INTO admin_actions (admin_id, target_user_id, action_type, details)
+VALUES (:admin_id, :target_user_id, :action_type, :details);
+
+
+23.Update case
+
+
+UPDATE cases
+SET lawyer_id = :lawyerId
+WHERE id = :caseId;
+
+
+24.Create timeline entry
+
+
+INSERT INTO timeline (case_id, actor_id, event, meta)
+VALUES (:case_id, :actor_id, 'Lawyer Assigned', :meta);
+
+
+25. Lawyer Verification request:
+SELECT 
+    COUNT(*) AS total_requests,
+    SUM(verified = 1) AS approved,
+    SUM(verified = 0) AS pending
+FROM users
+WHERE role = 'LAWYER';
+
+
+
+26. Cases by Status
+
+
+SELECT status, COUNT(*) AS count
+FROM cases
+GROUP BY status
+ORDER BY count DESC;
+
+
+
+
+
+27. Evidence Count per Case
+
+
+SELECT c.id, c.tracking_code, c.title, COUNT(e.id) AS evidence_count
+FROM cases c
+LEFT JOIN evidence e ON e.case_id = c.id
+GROUP BY c.id
+ORDER BY evidence_count DESC
+LIMIT 50;
+
+
+28. Insert evidence
+INSERT INTO evidence (case_id, filename, stored_path, sha256, uploaded_by)
+VALUES (:case_id, :filename, :stored_path, :sha256, :uploaded_by);
+
+
+29. Insert timeline
+INSERT INTO timeline (case_id, actor_id, event, meta)
+VALUES (:case_id, :actor_id, 'Lawyer Assigned', :meta);
+
+
+
+30. Insert case
+INSERT INTO cases (tracking_code, title, description, type, district, status, created_by)
+VALUES (:tracking_code, :title, :description, :type, :district, 'RECEIVED', :created_by);
+SET @case_id = LAST_INSERT_ID();
+-- Insert timeline
+INSERT INTO timeline (case_id, actor_id, event, meta)
+VALUES (@case_id, :actor_id, 'Received', :meta);
+COMMIT;
+
+
+31. Lawyer verification Request Statistics
+
+SELECT
+    COUNT(*) AS total_requests,
+    SUM(verified = 1) AS approved,
+    SUM(verified = 0) AS pending
+FROM users
+WHERE role = 'LAWYER';
+
+
+32. Chat Activity
+
+SELECT
+    c.id,
+    c.title,
+    COUNT(cm.id) AS message_count,
+    COUNT(DISTINCT cm.sender_id) AS participants
+FROM cases c
+LEFT JOIN chat_messages cm ON c.id = cm.case_id
+GROUP BY c.id
+ORDER BY message_count DESC;
+
+
+
+
+
+
+
+
+
+
+
+
+

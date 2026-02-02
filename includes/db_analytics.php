@@ -1,8 +1,5 @@
 <?php
-/**
- * Analytics Database Connection
- * Returns PDO connection to justice_hammer_analytics database
- */
+
 
 function getAnalyticsDbConnection() {
     static $analyticsPdo = null;
@@ -11,7 +8,6 @@ function getAnalyticsDbConnection() {
         return $analyticsPdo;
     }
 
-    // default config (fallback)
     $config = [];
     $envFile = __DIR__ . '/../.env';
     if (file_exists($envFile)) {

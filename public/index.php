@@ -1,8 +1,5 @@
 <?php
-/**
- * Health Check Endpoint
- * Tests connectivity to both primary and analytics databases
- */
+
 
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/db_analytics.php';
